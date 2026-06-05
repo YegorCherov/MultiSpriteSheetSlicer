@@ -10,19 +10,28 @@ Here's a quick demo showcasing the tool in action:
 
 ## Features
 
-- Slice sprite sheets based on cell count or cell size
-- Set custom pivot positions or choose from preset pivot points
-- Choose between normalized or pixel-based pivot units
-- Auto-refresh feature to automatically update the selected sprite sheets
-- Supports folders or individual sprite sheet files as input
+- **Modern API Slicing:** Uses Unity's modern, warnings-free `ISpriteEditorDataProvider` API.
+- **Smart Grid Auto-Detection:** Automatically estimates grid dimensions based on mathematical transparency evaluation (extremely useful for complex sheets).
+- **Task-Queue Management:** Select folders or files to load them into an editable queue.
+- **Exclude/Discard Controls:** Toggle active items or discard specific sheets to save them for later slicing.
+- **Lock Selection List:** Lock your current task list to prevent selection changes from clearing your customized settings.
+- **Pivot Controls:** Set custom pivot positions or choose from preset pivot points.
+- **Supports Folder Processing:** Process an entire folder or individual sprite sheet files.
 
-## Installation
+## Prerequisites & Installation
 
-1. Clone or download the repository to your local machine.
+This tool uses Unity's modern Sprite Editor API. To compile this script without warnings or errors, **the 2D Sprite package must be installed in your project.**
 
-2. Navigate to the project folder and open the Unity project.
+### 1. Install 2D Sprite Package
+1. Open your Unity project.
+2. In the top menu, go to **Window > Package Manager**.
+3. In the Package Manager, change the view filter dropdown (top-left) to **Packages: Unity Registry**.
+4. Type `2D Sprite` in the search bar.
+5. Select **2D Sprite** from the list and click **Install** in the bottom-right.
 
-3. The `SliceSpriteSheets.cs` script should be located in the `MultiSpriteSheetSlicer` folder.
+### 2. Add the Script
+1. Clone or download this repository.
+2. The `SliceSpriteSheets.cs` script should be placed inside an `Editor` folder (or a folder named `MultiSpriteSheetSlicer` inside your `Assets` directory).
 
    ![Script Location](Images/Slicer2.png)
 
@@ -32,19 +41,16 @@ Here's a quick demo showcasing the tool in action:
 
     ![Open Project](Images/SlicerToolsImage.png)
 
-2. Select the sprite sheet(s) you want to slice. You can either select individual sprite sheet files or a folder containing sprite sheets.
+2. Select the sprite sheet(s) you want to slice in your Project window. You can select folders or multiple individual texture assets.
 
-3. Adjust the slicing options as needed:
+3. Customize Slicing Options:
    - **Slice Mode**: Choose between slicing based on cell count or cell size.
-   - **Cells Per Row/Column**: Set the number of cells per row and column when using the cell count mode.
-   - **Cell Width/Height**: Set the width and height of each cell when using the cell size mode.
-   - **Pivot Preset**: Select from preset pivot positions or choose a custom pivot position.
-   - **Pivot Unit Mode**: Choose between normalized (0-1 range) or pixel-based pivot units.
-   - **Auto Refresh**: Enable or disable auto-refresh, which automatically updates the selected sprite sheets based on the specified refresh interval.
+   - **Lock Selection List**: Check this to freeze the list so you can edit individual configurations without clicking away and losing your queue.
+   - **Auto-Detect**: Click this next to an item to scan for the ideal grid size (e.g., detecting `64x64` animations automatically).
+   - **Ignore Empty Sprites**: Enabled by default; skips writing empty/fully transparent slices to your asset database.
+   - **Pivot Preset**: Select from preset pivot positions or configure a custom pivot.
 
-4. Click the "Slice Selected Sprite Sheets" button to slice the selected sprite sheets.
-
-5. The sliced sprites will be imported into the project, and you can find them in the respective sprite sheet folder(s).
+4. Click **Slice Only** for individual sheets, or **Slice All Enabled** to batch-process your entire queue.
 
 ## Contributing
 
