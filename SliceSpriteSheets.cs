@@ -2,9 +2,11 @@ using UnityEngine;
 using UnityEditor;
 using System.IO;
 using System.Collections.Generic;
-
+using System;
+#if UNITY_EDITOR
 public class SliceSpriteSheets : EditorWindow
 {
+    private const float SPACER = 10.0f;
     public enum SliceMode
     {
         CellCount,
@@ -17,37 +19,24 @@ public class SliceSpriteSheets : EditorWindow
         Pixels
     }
 
-    private string[] pivotPresets = new string[]
-    {
-        "Center",
-        "Top",
-        "Top Left",
-        "Top Right",
-        "Left",
-        "Right",
-        "Bottom",
-        "Bottom Left",
-        "Bottom Right",
-        "Custom"
-    };
-
     private SliceMode sliceMode = SliceMode.CellCount;
-    private int cellsPerRow = 4;
-    private int cellsPerColumn = 4;
+    private int RowCount = 4;
+    private int ColCount = 4;
     private int cellWidth = 32;
     private int cellHeight = 32;
 
     private Vector2 pivotPosition = new Vector2(0.5f, 0.5f);
     private PivotUnitMode pivotUnitMode = PivotUnitMode.Normalized;
 
-    private bool autoRefresh = false;
-    private float autoRefreshInterval = 0.1f;
+    private bool LockSheets = false;
+    private const float REFRESHTIME = 0.2f;
     private double lastRefreshTime = 0f;
 
     private Vector2 scrollPosition;
     private List<Texture2D> selectedSpriteSheets = new List<Texture2D>();
 
-    private int selectedPivotPreset = 0;
+    //Allignments defined by unity
+    private SpriteAlignment SelectedPivot = SpriteAlignment.Center;
 
     [MenuItem("Tools/Slice Sprite Sheets")]
     public static void ShowWindow()
@@ -59,16 +48,49 @@ public class SliceSpriteSheets : EditorWindow
     {
         Selection.selectionChanged += Repaint;
         RefreshSelectedSpriteSheets();
-        EditorApplication.update += UpdateAutoRefresh;
     }
 
     private void OnDisable()
     {
         Selection.selectionChanged -= Repaint;
-        EditorApplication.update -= UpdateAutoRefresh;
+    }
+    private void OnDestroy() 
+    {
+        Selection.selectionChanged -= Repaint;
     }
 
     private void OnGUI()
+    {
+        DrawSliceMode();
+
+        GUILayout.Space(SPACER);
+
+        DrawPivot();
+
+        GUILayout.Space(SPACER);
+
+        LockSheets = EditorGUILayout.Toggle("Lock Sheets", LockSheets);
+
+        if (GUILayout.Button("Slice Selected Sprite Sheets"))
+            SliceSelectedSpriteSheets();
+
+        GUILayout.Space(SPACER);
+
+        DrawSpriteSheets();
+    }
+
+    private void Update()
+    {
+        if(LockSheets)
+            return;
+        if(EditorApplication.timeSinceStartup - lastRefreshTime < REFRESHTIME)
+            return;
+        lastRefreshTime = EditorApplication.timeSinceStartup;
+        RefreshSelectedSpriteSheets();
+        Repaint();
+    }
+
+    private void DrawSliceMode()
     {
         GUILayout.Label("Slicing Options", EditorStyles.boldLabel);
 
@@ -76,74 +98,39 @@ public class SliceSpriteSheets : EditorWindow
 
         if (sliceMode == SliceMode.CellCount)
         {
-            cellsPerRow = EditorGUILayout.IntField("Cells Per Row", cellsPerRow);
-            cellsPerColumn = EditorGUILayout.IntField("Cells Per Column", cellsPerColumn);
+            ColCount = EditorGUILayout.IntField("Cells Per Row", ColCount);
+            RowCount = EditorGUILayout.IntField("Cells Per Column", RowCount);
+            return;
         }
-        else if (sliceMode == SliceMode.CellSize)
-        {
-            cellWidth = EditorGUILayout.IntField("Cell Width", cellWidth);
-            cellHeight = EditorGUILayout.IntField("Cell Height", cellHeight);
-        }
+        cellWidth = EditorGUILayout.IntField("Cell Width", cellWidth);
+        cellHeight = EditorGUILayout.IntField("Cell Height", cellHeight);
+    }
 
-        GUILayout.Space(10);
 
+    private void DrawPivot()
+    {
         GUILayout.Label("Pivot Options", EditorStyles.boldLabel);
+        SelectedPivot = (SpriteAlignment)EditorGUILayout.EnumPopup("Pivot Preset", SelectedPivot);
 
-        selectedPivotPreset = EditorGUILayout.Popup("Pivot Preset", selectedPivotPreset, pivotPresets);
-
-        switch (pivotPresets[selectedPivotPreset])
+        if(SelectedPivot == SpriteAlignment.Custom)
         {
-            case "Center":
-                pivotPosition = new Vector2(0.5f, 0.5f);
-                break;
-            case "Top":
-                pivotPosition = new Vector2(0.5f, 1f);
-                break;
-            case "Top Left":
-                pivotPosition = new Vector2(0f, 1f);
-                break;
-            case "Top Right":
-                pivotPosition = new Vector2(1f, 1f);
-                break;
-            case "Left":
-                pivotPosition = new Vector2(0f, 0.5f);
-                break;
-            case "Right":
-                pivotPosition = new Vector2(1f, 0.5f);
-                break;
-            case "Bottom":
-                pivotPosition = new Vector2(0.5f, 0f);
-                break;
-            case "Bottom Left":
-                pivotPosition = new Vector2(0f, 0f);
-                break;
-            case "Bottom Right":
-                pivotPosition = new Vector2(1f, 0f);
-                break;
-            case "Custom":
-                // Allow custom pivot position input
-                pivotPosition = EditorGUILayout.Vector2Field("Custom Pivot", pivotPosition);
-                break;
+            pivotUnitMode = (PivotUnitMode)EditorGUILayout.EnumPopup("Pivot Unit Mode", pivotUnitMode);
+            pivotPosition = EditorGUILayout.Vector2Field("Custom Pivot", pivotPosition);
+            return;
         }
 
-        pivotUnitMode = (PivotUnitMode)EditorGUILayout.EnumPopup("Pivot Unit Mode", pivotUnitMode);
-
-        GUILayout.Space(10);
-
-        autoRefresh = EditorGUILayout.Toggle("Auto Refresh", autoRefresh);
-        if (autoRefresh)
-        {
-            autoRefreshInterval = EditorGUILayout.FloatField("Refresh Interval (seconds)", autoRefreshInterval);
-            autoRefreshInterval = Mathf.Max(0.1f, autoRefreshInterval);
-        }
-
-        if (GUILayout.Button("Slice Selected Sprite Sheets"))
-        {
-            SliceSelectedSpriteSheets();
-        }
-
-        GUILayout.Space(10);
-
+        pivotPosition = AlignToPivot(SelectedPivot);
+    }
+    private static Vector2 AlignToPivot(SpriteAlignment alignment)
+    {
+        //bottom -> 0, center -> 0.5, top -> 1
+        float height = 1.0f - (int)alignment / 3 * 0.5f;
+        //left -> 0, center -> 0.5, right -> 1
+        float width = (int)alignment % 3 * 0.5f;
+        return new(width,height);
+    }
+    private void DrawSpriteSheets()
+    {
         GUILayout.Label("Selected Sprite Sheets", EditorStyles.boldLabel);
 
         scrollPosition = GUILayout.BeginScrollView(scrollPosition);
@@ -157,46 +144,31 @@ public class SliceSpriteSheets : EditorWindow
         }
         GUILayout.EndScrollView();
     }
-    private void UpdateAutoRefresh()
-    {
-        if (autoRefresh && EditorApplication.timeSinceStartup - lastRefreshTime >= autoRefreshInterval)
-        {
-            lastRefreshTime = EditorApplication.timeSinceStartup;
-            RefreshSelectedSpriteSheets();
-            Repaint();
-        }
-    }
     private void RefreshSelectedSpriteSheets()
     {
         selectedSpriteSheets.Clear();
 
-        Object[] selectedAssets = Selection.GetFiltered(typeof(Object), SelectionMode.Assets);
-        foreach (Object obj in selectedAssets)
+        UnityEngine.Object[] selectedAssets = Selection.GetFiltered(typeof(UnityEngine.Object), SelectionMode.Assets);
+        foreach (UnityEngine.Object obj in selectedAssets)
         {
             string assetPath = AssetDatabase.GetAssetPath(obj);
-
+            Texture2D spriteSheet;
+            // If the selected asset is a folder, get all sprite sheets inside it
             if (Directory.Exists(assetPath))
             {
-                // If the selected asset is a folder, get all sprite sheets inside it
                 string[] spriteSheetPaths = Directory.GetFiles(assetPath, "*.png", SearchOption.AllDirectories);
                 foreach (string path in spriteSheetPaths)
                 {
-                    Texture2D spriteSheet = AssetDatabase.LoadAssetAtPath<Texture2D>(path);
+                    spriteSheet = AssetDatabase.LoadAssetAtPath<Texture2D>(path);
                     if (spriteSheet != null && IsValidSpriteSheet(spriteSheet))
-                    {
                         selectedSpriteSheets.Add(spriteSheet);
-                    }
                 }
+                continue;
             }
-            else
-            {
-                // If the selected asset is a sprite sheet, add it to the list
-                Texture2D spriteSheet = obj as Texture2D;
-                if (spriteSheet != null && IsValidSpriteSheet(spriteSheet))
-                {
-                    selectedSpriteSheets.Add(spriteSheet);
-                }
-            }
+            // If the selected asset is a sprite sheet, add it to the list
+            spriteSheet = obj as Texture2D;
+            if (spriteSheet != null && IsValidSpriteSheet(spriteSheet))
+                selectedSpriteSheets.Add(spriteSheet);
         }
     }
     private bool IsValidSpriteSheet(Texture2D spriteSheet)
@@ -207,101 +179,89 @@ public class SliceSpriteSheets : EditorWindow
     }
     private void SliceSelectedSpriteSheets()
     {
-        foreach (Texture2D spriteSheet in selectedSpriteSheets)
+        Action<Texture2D> sliceFunc = sliceMode switch
         {
-            string assetPath = AssetDatabase.GetAssetPath(spriteSheet);
-            TextureImporter importer = AssetImporter.GetAtPath(assetPath) as TextureImporter;
+            SliceMode.CellCount => (spritesheet) => SliceByCell(spritesheet, RowCount, ColCount, SelectedPivot, pivotPosition),
+            SliceMode.CellSize => (spritesheet) => SliceBySize(spritesheet, cellHeight, cellWidth, SelectedPivot, pivotPosition),
+            _ => null
+        };
+        if(sliceFunc == null)
+        {
+            Debug.LogError($"Undefined slice mode given {sliceMode}");
+            return;
+        }
 
-            if (importer != null)
-            {
-                int spriteWidth = spriteSheet.width;
-                int spriteHeight = spriteSheet.height;
-
-                int spritesPerRow, spritesPerColumn;
-                int spritePixelsPerUnitX, spritePixelsPerUnitY;
-
-                if (sliceMode == SliceMode.CellCount)
-                {
-                    spritesPerRow = cellsPerRow;
-                    spritesPerColumn = cellsPerColumn;
-                    spritePixelsPerUnitX = spriteWidth / spritesPerRow;
-                    spritePixelsPerUnitY = spriteHeight / spritesPerColumn;
-                }
-                else
-                {
-                    spritesPerRow = spriteWidth / cellWidth;
-                    spritesPerColumn = spriteHeight / cellHeight;
-                    spritePixelsPerUnitX = cellWidth;
-                    spritePixelsPerUnitY = cellHeight;
-                }
-
-                List<SpriteMetaData> spriteData = new List<SpriteMetaData>();
-
-                for (int i = 0; i < spritesPerColumn; i++)
-                {
-                    for (int j = 0; j < spritesPerRow; j++)
-                    {
-                        SpriteMetaData smd = new SpriteMetaData();
-                        smd.rect = new Rect(j * spritePixelsPerUnitX, i * spritePixelsPerUnitY, spritePixelsPerUnitX, spritePixelsPerUnitY);
-                        smd.name = string.Format("{0}_{1}", Path.GetFileNameWithoutExtension(assetPath), (i * spritesPerRow) + j);
-
-                        if (selectedPivotPreset == pivotPresets.Length - 1) // Custom preset
-                        {
-                            smd.alignment = (int)SpriteAlignment.Custom;
-                            smd.pivot = pivotPosition;
-                        }
-                        else
-                        {
-                            smd.alignment = (int)GetPivotAlignment(selectedPivotPreset);
-                        }
-
-                        smd.border = new Vector4(0, 0, 0, 0);
-
-                        spriteData.Add(smd);
-                    }
-                }
-
-                importer.spritesheet = spriteData.ToArray();
-                importer.spriteImportMode = SpriteImportMode.Multiple;
-
-                float originalPixelsPerUnit = importer.spritePixelsPerUnit;
-                importer.spritePixelsPerUnit = 1;
-
-                AssetDatabase.ImportAsset(assetPath, ImportAssetOptions.ForceUpdate);
-
-                importer.spritePixelsPerUnit = originalPixelsPerUnit;
-                AssetDatabase.ImportAsset(assetPath, ImportAssetOptions.ForceUpdate);
-            }
+        foreach (Texture2D spritesheet in selectedSpriteSheets)
+        {
+            sliceFunc(spritesheet);
         }
 
         AssetDatabase.Refresh();
         RefreshSelectedSpriteSheets();
     }
+    public static void SliceByCell(Texture2D spriteSheet,int rows, int collums, SpriteAlignment? alignment = null, Vector2? pivot = null){
+        alignment ??= SpriteAlignment.Center;
+        pivot ??= new(0.5f,0.5f);
+        string assetPath = AssetDatabase.GetAssetPath(spriteSheet);
+        TextureImporter importer = AssetImporter.GetAtPath(assetPath) as TextureImporter;
 
-    private SpriteAlignment GetPivotAlignment(int presetIndex)
+        if(importer == null)
+            return;
+
+        int Height = spriteSheet.height / rows;
+        int Width = spriteSheet.width / collums;
+
+        importer.spriteImportMode = SpriteImportMode.Single;
+        importer.spritesheet = SpriteSlicer(spriteSheet,rows,collums,Height,Width,assetPath,alignment,pivot).ToArray();
+        importer.spriteImportMode = SpriteImportMode.Multiple;
+
+        AssetDatabase.ImportAsset(assetPath, ImportAssetOptions.ForceUpdate);
+    }
+
+    public static void SliceBySize(Texture2D spriteSheet, int height, int width, SpriteAlignment? alignment = null, Vector2? pivot = null)
     {
-        switch (presetIndex)
+        alignment ??= SpriteAlignment.Center;
+        pivot ??= new(0.5f,0.5f);
+        string assetPath = AssetDatabase.GetAssetPath(spriteSheet);
+        TextureImporter importer = AssetImporter.GetAtPath(assetPath) as TextureImporter;
+        if(importer == null)
+            return;
+
+        int rows = spriteSheet.height/height;
+        int collums = spriteSheet.width / width;
+
+        importer.spriteImportMode = SpriteImportMode.Single;
+        importer.spritesheet = SpriteSlicer(spriteSheet,rows,collums,height,width,assetPath,alignment,pivot).ToArray();
+        importer.spriteImportMode = SpriteImportMode.Multiple;
+
+        AssetDatabase.ImportAsset(assetPath, ImportAssetOptions.ForceUpdate);
+    }
+    private static List<SpriteMetaData> SpriteSlicer(Texture2D spriteSheet, int rows, int collums, int height, int width, string assetPath = null,SpriteAlignment? alignment = null, Vector2? pivot = null)
+    {
+        alignment ??= SpriteAlignment.Center;
+        pivot ??= new(0.5f,0.5f);
+        assetPath ??= AssetDatabase.GetAssetPath(spriteSheet);
+        string BaseName = Path.GetFileNameWithoutExtension(assetPath);
+        List<SpriteMetaData> spriteData = new();
+        for (int i = 0; i < rows; i++)
         {
-            case 0: // Center
-                return SpriteAlignment.Center;
-            case 1: // Top
-                return SpriteAlignment.TopCenter;
-            case 2: // Top Left
-                return SpriteAlignment.TopLeft;
-            case 3: // Top Right
-                return SpriteAlignment.TopRight;
-            case 4: // Left
-                return SpriteAlignment.LeftCenter;
-            case 5: // Right
-                return SpriteAlignment.RightCenter;
-            case 6: // Bottom
-                return SpriteAlignment.BottomCenter;
-            case 7: // Bottom Left
-                return SpriteAlignment.BottomLeft;
-            case 8: // Bottom Right
-                return SpriteAlignment.BottomRight;
-            default:
-                return SpriteAlignment.Center;
+            for (int j = 0; j < collums; j++)
+            {
+                SpriteMetaData smd = new()
+                {
+                    rect = new Rect(j * width, i * height, width, height),
+                    name = string.Format("{0}_{1}", BaseName, (i * collums) + j),
+                    alignment = (int)alignment.Value
+                };
+                if (alignment.Value == SpriteAlignment.Custom)
+                    smd.pivot = pivot.Value; 
+
+                smd.border = new(0, 0, 0, 0);
+
+                spriteData.Add(smd);
+            }
         }
+        return spriteData;
     }
 }
+#endif
