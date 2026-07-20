@@ -1,61 +1,64 @@
 # Slice Sprite Sheets
 
-This Unity editor tool allows you to easily slice sprite sheets into individual sprites, with various options for controlling the slicing process and pivot positions. The tool supports both PNG and TGA sprite sheet formats.
+Unity editor tool for slicing sprite sheets into individual sprites, with control over the slicing grid and pivot placement. Supports PNG and TGA source sheets.
 
 ## Demo
-
-Here's a quick demo showcasing the tool in action:
 
 ![Slice Sprite Sheets Demo](Images/SlicerVideo.gif)
 
 ## Features
 
-- **Modern API Slicing:** Uses Unity's modern, warnings-free `ISpriteEditorDataProvider` API.
-- **Smart Grid Auto-Detection:** Automatically estimates grid dimensions based on mathematical transparency evaluation (extremely useful for complex sheets).
-- **Task-Queue Management:** Select folders or files to load them into an editable queue.
-- **Exclude/Discard Controls:** Toggle active items or discard specific sheets to save them for later slicing.
-- **Lock Selection List:** Lock your current task list to prevent selection changes from clearing your customized settings.
-- **Pivot Controls:** Set custom pivot positions or choose from preset pivot points.
-- **Supports Folder Processing:** Process an entire folder or individual sprite sheet files.
+- **Modern API slicing.** Built on Unity's `ISpriteEditorDataProvider` API, no deprecated calls, no compile warnings.
+- **Grid auto-detection.** Estimates grid dimensions from transparency analysis of the sheet, useful for sheets where the cell size isn't known ahead of time.
+- **Task queue.** Load folders or individual files into an editable queue rather than slicing one sheet at a time.
+- **Exclude/discard controls.** Toggle items on or off, or discard a sheet entirely to slice later.
+- **Selection lock.** Freeze the current queue so changing your selection in the Project window doesn't wipe your per-item settings.
+- **Pivot controls.** Set a custom pivot per sheet or pick from presets.
+- **Folder or file processing.** Point the tool at a whole folder or select individual sheets.
 
-## Prerequisites & Installation
+## Requirements
 
-This tool uses Unity's modern Sprite Editor API. To compile this script without warnings or errors, **the 2D Sprite package must be installed in your project.**
+The tool relies on Unity's Sprite Editor API, which needs the 2D Sprite package installed, otherwise it won't compile.
 
-### 1. Install 2D Sprite Package
+**Install the 2D Sprite package**
+
 1. Open your Unity project.
-2. In the top menu, go to **Window > Package Manager**.
-3. In the Package Manager, change the view filter dropdown (top-left) to **Packages: Unity Registry**.
-4. Type `2D Sprite` in the search bar.
-5. Select **2D Sprite** from the list and click **Install** in the bottom-right.
+2. Go to **Window > Package Manager**.
+3. Set the view filter (top-left dropdown) to **Packages: Unity Registry**.
+4. Search for `2D Sprite`.
+5. Select it and click **Install**.
 
-### 2. Add the Script
+**Add the script**
+
 1. Clone or download this repository.
-2. The `SliceSpriteSheets.cs` script should be placed inside an `Editor` folder (or a folder named `MultiSpriteSheetSlicer` inside your `Assets` directory).
+2. Place `SliceSpriteSheets.cs` inside an `Editor` folder, or a `MultiSpriteSheetSlicer` folder under `Assets`.
 
    ![Script Location](Images/Slicer2.png)
 
 ## Usage
 
-1. Open the Slice Sprite Sheets window by navigating to `Tools` > `Slice Sprite Sheets` in the Unity editor menu.
+1. Open the tool via `Tools > Slice Sprite Sheets` in the Unity menu.
 
-    ![Open Project](Images/SlicerToolsImage.png)
+   ![Open Project](Images/SlicerToolsImage.png)
 
-2. Select the sprite sheet(s) you want to slice in your Project window. You can select folders or multiple individual texture assets.
+2. Select one or more sprite sheets in the Project window, folders and individual textures both work.
 
-3. Customize Slicing Options:
-   - **Slice Mode**: Choose between slicing based on cell count or cell size.
-   - **Lock Selection List**: Check this to freeze the list so you can edit individual configurations without clicking away and losing your queue.
-   - **Auto-Detect**: Click this next to an item to scan for the ideal grid size (e.g., detecting `64x64` animations automatically).
-   - **Ignore Empty Sprites**: Enabled by default; skips writing empty/fully transparent slices to your asset database.
-   - **Pivot Preset**: Select from preset pivot positions or configure a custom pivot.
+3. Set slicing options per item:
 
-4. Click **Slice Only** for individual sheets, or **Slice All Enabled** to batch-process your entire queue.
+   | Option | Description |
+   |---|---|
+   | Slice Mode | Slice by cell count or by cell size |
+   | Lock Selection List | Freezes the queue so editing settings doesn't clear it when your selection changes |
+   | Auto-Detect | Scans the sheet for its grid size, e.g. detects a 64x64 animation sheet automatically |
+   | Ignore Empty Sprites | On by default, skips writing fully transparent slices to the asset database |
+   | Pivot Preset | Preset pivot positions, or a custom pivot |
+
+4. Click **Slice Only** to process a single sheet, or **Slice All Enabled** to batch the whole queue.
 
 ## Contributing
 
-Contributions are welcome! If you have any improvements, bug fixes, or additional features to suggest, please open an issue or submit a pull request.
+Issues and pull requests are welcome, bug fixes, features, whatever you've got.
 
 ## License
 
-This project is licensed under the [MIT License](LICENSE).
+[MIT License](LICENSE).
